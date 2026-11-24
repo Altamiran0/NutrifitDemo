@@ -1,4 +1,4 @@
-export type RoleName = 'Cliente' | 'Nutricionista' | 'Instructor' | 'Admin';
+export type RoleName = 'CLIENTE' | 'NUTRICIONISTA' | 'INSTRUCTOR' | 'ADMINISTRADOR';
 
 interface BaseRegisterDTO {
   name: string;
@@ -11,14 +11,14 @@ interface BaseRegisterDTO {
 }
 
 export interface RegisterClientDTO extends BaseRegisterDTO {
-  role: 'Cliente';
+  role: 'CLIENTE';
   heightCm?: number;
   mainGoal?: string;
   medicalConditions?: string;
 }
 
 export interface RegisterNutritionistDTO extends BaseRegisterDTO {
-  role: 'Nutricionista';
+  role: 'NUTRICIONISTA';
   residentialArea: string;
   professionalTitle: string;
   professionalLicense: string;
@@ -26,7 +26,7 @@ export interface RegisterNutritionistDTO extends BaseRegisterDTO {
 }
 
 export interface RegisterInstructorDTO extends BaseRegisterDTO {
-  role: 'Instructor';
+  role: 'INSTRUCTOR';
   residentialArea: string;
   trainingTitle: string;
   registrationNumber?: string;
@@ -34,7 +34,7 @@ export interface RegisterInstructorDTO extends BaseRegisterDTO {
 }
 
 export interface RegisterAdminDTO extends BaseRegisterDTO {
-  role: 'Admin';
+  role: 'ADMINISTRADOR';
 }
 
 export type RegisterRequestDTO =
@@ -48,4 +48,17 @@ export interface RegisterResponseDTO {
   email: string;
   role: RoleName;
   message: string;
+}
+
+export interface LoginRequestDTO {
+  email: string;
+  password: string;
+}
+
+export interface UserSessionDTO {
+  userId: number;
+  name: string;
+  lastname: string;
+  email: string;
+  role: RoleName;
 }
