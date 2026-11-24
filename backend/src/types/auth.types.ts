@@ -1,4 +1,4 @@
-export type RoleName = 'Cliente' | 'Nutricionista' | 'Instructor';
+export type RoleName = 'Cliente' | 'Nutricionista' | 'Instructor' | 'Admin';
 
 interface BaseRegisterDTO {
   name: string;
@@ -33,10 +33,15 @@ export interface RegisterInstructorDTO extends BaseRegisterDTO {
   profilePictureUrl?: string;
 }
 
+export interface RegisterAdminDTO extends BaseRegisterDTO {
+  role: 'Admin';
+}
+
 export type RegisterRequestDTO =
   | RegisterClientDTO
   | RegisterNutritionistDTO
-  | RegisterInstructorDTO;
+  | RegisterInstructorDTO
+  | RegisterAdminDTO;
 
 export interface RegisterResponseDTO {
   userId: number;
