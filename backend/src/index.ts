@@ -3,11 +3,14 @@ import { stdin as input, stdout as output } from 'node:process';
 import { RegisterAuthService } from './services/register.auth.service';
 import { LoginAuthService } from './services/login.auth.service';
 import { pool } from './db';
-import { RegisterRequestDTO, UserSessionDTO } from './types/auth.types';
+import type { RegisterRequestDTO, UserSessionDTO } from './types/auth.types';
 import { CreateAvailabilityService } from './services/create.availability.service';
 import { UpdateAvailabilityService } from './services/update.availability.service';
 import { ListAvailabilityService } from './services/list.availability.service';
-import { AvailabilityDTO } from './types/availability.types';
+import type { AvailabilityDTO } from './types/availability.types';
+import { ListAssignmentService } from './services/list.assignment.service';
+import { UpdateAssignmentService } from './services/update.assignment.service';
+import type { ClientRosterItemDTO } from './types/assignment.types';
 
 async function promptAdminRegister(
   rl: readline.Interface,
@@ -204,6 +207,129 @@ async function promptAdminAvailability(
   }
 }
 
+function printClientsRoster(clients: ClientRosterItemDTO[]) {
+  if (clients.length === 0) {
+    console.log('  (no hay clientes activos registrados)');
+    return;
+  }
+
+  clients.forEach((c) => {
+    const nutLabel = c.nutritionistName
+      ? `${c.nutritionistName} (ID:${c.nutritionistId})`
+      : 'Sin asignar';
+    const instLabel = c.instructorName
+      ? `${c.instructorName} (ID:${c.instructorId})`
+      : 'Sin asignar';
+
+    let badge = '❌ SIN ASIGNAR';
+    if (c.nutritionistId && c.instructorId) {
+      badge = '✅ COMPLETO';
+    } else if (c.nutritionistId) {
+      badge = '🥗 SOLO NUTRICIONISTA';
+    } else if (c.instructorId) {
+      badge = '🏃 SOLO INSTRUCTOR';
+    }
+
+    console.log(
+      `  [Cliente ID: ${c.clientId}] ${c.name} ${c.lastname} (DNI: ${c.dni}) | Estado: ${badge}\n` +
+        `      Nutricionista: ${nutLabel} | Instructor: ${instLabel}`
+    );
+  });
+}
+
+async function promptAdminAssignments(
+  rl: readline.Interface,
+  listAssignmentService: ListAssignmentService,
+  updateAssignmentService: UpdateAssignmentService,
+  currentUser: UserSessionDTO
+) {
+  console.log('\n=== ASIGNACIÓN DE NUTRICIONISTA E INSTRUCTOR ===');
+  console.log('1. Ver padrón de clientes y estado de asignación');
+  console.log('2. Asignar / Modificar / Desvincular profesionales de un cliente');
+  const option = (await rl.question('Elegí una opción (1-2): ')).trim();
+
+  if (!['1', '2'].includes(option)) {
+    throw new Error('Opción inválida.');
+  }
+
+  const roster = await listAssignmentService.listClientsRoster(currentUser);
+  console.log('\nPadrón de clientes:');
+  printClientsRoster(roster);
+
+  if (option === '1' || roster.length === 0) {
+    return;
+  }
+
+  const clientId = Number((await rl.question('\nIngresá el ID del cliente a gestionar: ')).trim());
+  const selectedClient = roster.find((c) => c.clientId === clientId);
+  if (!selectedClient) {
+    throw new Error('ID de cliente inválido.');
+  }
+
+  // Selección de Nutricionista
+  const nutritionists = await listAssignmentService.listActiveNutritionists(currentUser);
+  console.log('\nNutricionistas disponibles:');
+  if (nutritionists.length === 0) {
+    console.log('  (no hay nutricionistas activos)');
+  } else {
+    nutritionists.forEach((n) =>
+      console.log(`  [${n.professionalId}] ${n.name} ${n.lastname} - ${n.specialtyOrTitle}`)
+    );
+  }
+  const nutInput = (
+    await rl.question(
+      'ID de Nutricionista (Enter para mantener actual | 0 para DESVINCULAR): '
+    )
+  ).trim();
+
+  let nutritionistId: number | null | undefined = undefined;
+  if (nutInput === '0') {
+    nutritionistId = null;
+  } else if (nutInput !== '') {
+    const parsedNut = Number(nutInput);
+    if (!nutritionists.some((n) => n.professionalId === parsedNut)) {
+      throw new Error('ID de nutricionista inválido.');
+    }
+    nutritionistId = parsedNut;
+  }
+
+  // Selección de Instructor
+  const instructors = await listAssignmentService.listActiveInstructors(currentUser);
+  console.log('\nInstructores disponibles:');
+  if (instructors.length === 0) {
+    console.log('  (no hay instructores activos)');
+  } else {
+    instructors.forEach((i) =>
+      console.log(`  [${i.professionalId}] ${i.name} ${i.lastname} - ${i.specialtyOrTitle}`)
+    );
+  }
+  const instInput = (
+    await rl.question(
+      'ID de Instructor (Enter para mantener actual | 0 para DESVINCULAR): '
+    )
+  ).trim();
+
+  let instructorId: number | null | undefined = undefined;
+  if (instInput === '0') {
+    instructorId = null;
+  } else if (instInput !== '') {
+    const parsedInst = Number(instInput);
+    if (!instructors.some((i) => i.professionalId === parsedInst)) {
+      throw new Error('ID de instructor inválido.');
+    }
+    instructorId = parsedInst;
+  }
+
+  const res = await updateAssignmentService.assignOrUpdate(currentUser, {
+    clientId,
+    nutritionistId,
+    instructorId,
+  });
+
+  console.log(`\n✅ ${res.message}`);
+  printClientsRoster([res.client]);
+}
+
 async function main() {
   const rl = readline.createInterface({ input, output });
   const registerService = new RegisterAuthService();
@@ -211,6 +337,8 @@ async function main() {
   const createAvailabilityService = new CreateAvailabilityService();
   const updateAvailabilityService = new UpdateAvailabilityService();
   const listAvailabilityService = new ListAvailabilityService();
+  const listAssignmentService = new ListAssignmentService();
+  const updateAssignmentService = new UpdateAssignmentService();
   let currentUser: UserSessionDTO | null = null;
   let running = true;
 
@@ -245,12 +373,13 @@ async function main() {
         if (currentUser.role === 'CLIENTE') {
           console.log('1. Ver mi plan nutricional y rutina (Pendiente)');
         } else if (currentUser.role === 'NUTRICIONISTA') {
-          console.log('1. Ver mis clientes asignados (Pendiente)');
+          console.log('1. Ver mis clientes asignados');
         } else if (currentUser.role === 'INSTRUCTOR') {
-          console.log('1. Ver mis alumnos asignados (Pendiente)');
+          console.log('1. Ver mis alumnos asignados');
         } else if (currentUser.role === 'ADMINISTRADOR') {
           console.log('1. Registrar nuevo usuario (CLIENTE / NUTRICIONISTA / INSTRUCTOR / ADMINISTRADOR)');
-          console.log('2. Gestionar disponibilidad horaria de profesionales'); // 👈 nueva
+          console.log('2. Gestionar disponibilidad horaria de profesionales');
+          console.log('3. Gestionar asignación de Nutricionista e Instructor a clientes');
         }
         console.log('9. Cerrar sesión');
 
@@ -262,7 +391,7 @@ async function main() {
             currentUser = null;
           } else if (opt === '1' && currentUser.role === 'ADMINISTRADOR') {
             await promptAdminRegister(rl, registerService, currentUser);
-          } else if (opt === '2' && currentUser.role === 'ADMINISTRADOR') { // 👈 nueva
+          } else if (opt === '2' && currentUser.role === 'ADMINISTRADOR') {
             await promptAdminAvailability(
               rl,
               createAvailabilityService,
@@ -270,6 +399,20 @@ async function main() {
               listAvailabilityService,
               currentUser
             );
+          } else if (opt === '3' && currentUser.role === 'ADMINISTRADOR') {
+            await promptAdminAssignments(
+              rl,
+              listAssignmentService,
+              updateAssignmentService,
+              currentUser
+            );
+          } else if (
+            opt === '1' &&
+            (currentUser.role === 'NUTRICIONISTA' || currentUser.role === 'INSTRUCTOR')
+          ) {
+            const portfolio = await listAssignmentService.listPortfolioByProfessionalUser(currentUser);
+            console.log('\n=== MI CARTERA DE CLIENTES ASIGNADOS ===');
+            printClientsRoster(portfolio);
           } else if (opt === '1') {
             console.log('ℹ️  Funcionalidad en desarrollo para el próximo sprint.');
           } else {
