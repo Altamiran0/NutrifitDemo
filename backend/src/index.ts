@@ -1,3 +1,4 @@
+import { seedTestUsers } from './seed';
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { RegisterAuthService } from './services/register.auth.service';
@@ -342,7 +343,9 @@ async function main() {
   let currentUser: UserSessionDTO | null = null;
   let running = true;
 
-  try {
+  try { 
+    await seedTestUsers(pool);
+
     while (running) {
       if (!currentUser) {
         console.log('\n==============================');
