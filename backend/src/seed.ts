@@ -1,6 +1,5 @@
 import { Pool } from 'pg';
-// Si usas bcrypt o similar para hashear contraseñas en tu servicio de registro, impórtalo aquí:
-// import bcrypt from 'bcrypt';
+import { hashPassword } from './utils/hash';
 
 export async function seedTestUsers(pool: Pool): Promise<void> {
   const client = await pool.connect();
@@ -8,9 +7,7 @@ export async function seedTestUsers(pool: Pool): Promise<void> {
   try {
     await client.query('BEGIN');
 
-    // Si en tu login validas con bcrypt, descomenta la siguiente línea y usa `hashedPassword` en los inserts:
-    // const hashedPassword = await bcrypt.hash('123456', 10);
-    const defaultPassword = 'password123';
+    const defaultPassword = hashPassword('123123');
 
     // 1. ADMINISTRADOR
     await client.query(
@@ -20,7 +17,7 @@ export async function seedTestUsers(pool: Pool): Promise<void> {
         (SELECT id FROM roles WHERE role_name = 'ADMINISTRADOR'),
         'Admin', 'Sistema', '10000001', '1140000001', '1985-01-15', 'admin@test.com', $1, TRUE
       )
-      ON CONFLICT (dni) DO NOTHING;
+      ON CONFLICT (dni) DO UPDATE SET password = EXCLUDED.password;
       `,
       [defaultPassword]
     );
@@ -33,7 +30,7 @@ export async function seedTestUsers(pool: Pool): Promise<void> {
         (SELECT id FROM roles WHERE role_name = 'NUTRICIONISTA'),
         'Laura', 'Gómez', '20000002', '1140000002', '1990-05-20', 'nutricionista@test.com', $1, TRUE
       )
-      ON CONFLICT (dni) DO NOTHING
+      ON CONFLICT (dni) DO UPDATE SET password = EXCLUDED.password
       RETURNING id;
       `,
       [defaultPassword]
@@ -58,7 +55,7 @@ export async function seedTestUsers(pool: Pool): Promise<void> {
         (SELECT id FROM roles WHERE role_name = 'INSTRUCTOR'),
         'Carlos', 'Pérez', '30000003', '1140000003', '1992-08-10', 'instructor@test.com', $1, TRUE
       )
-      ON CONFLICT (dni) DO NOTHING
+      ON CONFLICT (dni) DO UPDATE SET password = EXCLUDED.password
       RETURNING id;
       `,
       [defaultPassword]
@@ -83,7 +80,7 @@ export async function seedTestUsers(pool: Pool): Promise<void> {
         (SELECT id FROM roles WHERE role_name = 'CLIENTE'),
         'Martín', 'López', '40000004', '1140000004', '1998-11-30', 'cliente@test.com', $1, TRUE
       )
-      ON CONFLICT (dni) DO NOTHING
+      ON CONFLICT (dni) DO UPDATE SET password = EXCLUDED.password
       RETURNING id;
       `,
       [defaultPassword]

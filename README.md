@@ -39,3 +39,16 @@ Una vez levantado el contenedor de Docker, podés conectarte visualmente siguien
 ### Ver tablas y ejecutar consultas
 * En el árbol de la izquierda, desplegar: `NutriFit Local` -> `Databases` -> `<POSTGRES_DB>` -> `Schemas` -> `public` -> `Tables`.
 * Para abrir una consola SQL, seleccionar la base de datos y hacer clic en el ícono **Query Tool** (arriba a la izquierda en el panel de navegación).
+
+* Usuarios de prueba
+
+Al iniciar la aplicación por consola (`npm run start`), el sistema carga automáticamente cuatro usuarios precargados para facilitar las pruebas de todos los roles.
+
+**Contraseña para todos los usuarios:** `123123`
+
+| Rol | Email | Nombre | Datos adicionales |
+| :--- | :--- | :--- | :--- |
+| **Administrador** | `admin@test.com` | Admin Sistema | DNI: `10000001` |
+| **Nutricionista** | `nutricionista@test.com` | Laura Gómez | Matrícula: `MN-12345` |
+| **Instructor** | `instructor@test.com` | Carlos Pérez | Registro: `MAT-98765` |
+| **Cliente** | `cliente@test.com` | Martín López | Asignado a Laura Gómez y Carlos Pérez |
